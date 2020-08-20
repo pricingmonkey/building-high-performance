@@ -1,0 +1,551 @@
+import { CodeSurfer, CodeSurferColumns, Step } from "code-surfer"
+import { nightOwl, duotoneDark, shadesOfPurple } from "@code-surfer/themes"
+
+import { themes } from 'mdx-deck'
+export const theme = {
+  ...themes.yellow,
+  styles: {
+    h1: { margin: "10px 0" },
+    h2: { margin: "5px 0" },
+    h3: { margin: "5px 0" },
+    p: { margin: "5px 0" },
+    li: { margin: "10px 0" }
+  }
+}
+
+# Building high performance 
+## financial web application
+### with JavaScript
+
+<small style={{ position: "absolute", right: "15px", bottom: "15px" }}>
+Source: <a href="https://github.com/pbadenski/building-high-performance">https://github.com/pbadenski/building-high-performance</a>
+</small>
+
+---
+
+# About me
+
+---
+
+## Pawel Badenski  
+### CTO @ PricingMonkey  
+
+Twitter: <a href="https://twitter.com/pbadenski">@pbadenski</a>
+
+Email: <a mailto="pawel@pricingmonkey.com">pawel@pricingmonkey.com</a>
+
+Mentor @ <a href="https://meetamentor.co.uk">Meet-a-Mentor</a>
+
+<small style={{ position: "absolute", right: "15px", bottom: "15px" }}>
+*) shameful plug - we're looking for talented programmers!
+</small>
+
+---
+
+nearly 15 years of experience in building software
+
+---
+
+coming from Java background, became "JS developer" 5 years ago
+
+---
+
+generalist, but loves performance engineering
+
+---
+
+# This presentation
+## our journey in seven points
+
+---
+
+## 1. Don’t get distracted by other people problems
+... this presentation included 😉
+
+---
+
+majority of performance suggestion online don't apply to our project
+
+<Image src={require("./static/prom-client-closed-pr.png")} size="contain" height="40%" />
+
+---
+
+we're a specialised SaaS platform for financial analytics
+
+---
+
+our main JS bundle is 6MB and 1.5MB compressed
+
+---
+
+we don't care about download/parse time of JS code
+
+<Image src={require("./static/chrome-performance-report.png")} size="contain" height="40%" />
+
+
+...even though 99% of the Internet does
+
+
+---
+
+our performance challenges are managing
+
+thousands of financial computations inside the browser
+
+<Image src={require("./static/grafana-calculation-rate.png")} size="contain" height="30%" width="90%" />
+
+
+---
+
+## 2. You can build a high performance
+## web app with JS
+
+---
+
+high performance means a different thing for every project
+
+---
+
+for us it means
+
+*optimised for a CPU-bounded problem with high event throughput*
+
+  - 500-1000 Redux actions per second
+  - 10^2 computations per second
+	  - each at 10-50ms == between 0.1 & 5 seconds for a single "computation loop"
+
+---
+
+Hint: We use Web Workers
+
+<Image src={require("./static/npm-web-workers.png")} size="contain" height="50%" width="80%" />
+
+---
+
+BTW CPU-bounded is a fancy talk for:
+
+<br />
+
+*"if you get more CPUs your program will go faster*
+
+*WHILE increasing other resources will deliver exactly 0 value"*
+
+---
+
+4 years ago we were eagerly waiting for async/await to show up in Chrome
+
+<Image src={require("./static/chrome-async-await-status.png")} size="contain" height="40%" />
+
+---
+
+we haven't worried about Chrome/V8 updates for over 2 years now
+
+---
+
+These days JS is pretty darn fast
+
+...but JIT optimised languages usually come with caveats
+<br />
+<Image src={require("./static/v8-caveats.png")} size="contain" height="40%" width="80%" />
+
+---
+
+...and even more caveats
+
+<Image src={require("./static/v8-caveats-2.png")} size="contain" height="40%" width="80%" />
+
+---
+
+Some big unsolved problems...
+
+---
+
+<br />
+<Image src={require("./static/string-representations.png")} size="contain" height="40%" width="80%" />
+
+ - crazy number of string representations
+ - difficult to understand performance characteristics
+ - no builtin hashCode, no interning
+
+---
+
+object polymorphism / megamorphism
+
+<Image src={require("./static/megamorphic.png")} size="contain" height="40%" width="80%" />
+
+<br />
+
+Recommended: [deoptigate](https://www.npmjs.com/package/deoptigate)
+
+---
+
+slow Date implementation
+
+<Image src={require("./static/v8-group-date-thread.png")} size="contain" height="40%" />
+
+---
+
+WebAssembly isn't likely to be an alternative yet, but getting there...
+
+<br />
+
+For more details: [Scala.js and WebAssembly, a tale of the dangers of the sea](https://www.youtube.com/watch?v=QsOHofFJpig)
+
+---
+
+## 3. Choose boring technology... and then don’t!
+
+---
+
+Our journey with managing asynchronous behaviour:
+
+	-> async calls embedded in React components
+	| -> thunks
+	| -> Redux Saga
+	| -> RxJS
+	| -> https://www.npmjs.com/package/rxjs-redux
+
+---
+
+<CodeSurferColumns themes={[nightOwl, shadesOfPurple]}>
+
+<Step title="async calls embedded in React components">
+
+```js
+const onKeyPressed = async (props: Props) => {
+ const result = await callApi();
+ props.dispatch(makeAction(result));
+};
+
+const InteractiveComponent = (props: Props) => (
+   <input onKeyPress={() => onKeyPressed(props)}></input>
+ );
+```
+
+</Step>
+
+</CodeSurferColumns>
+
+---
+
+<CodeSurferColumns themes={[nightOwl, shadesOfPurple]}>
+
+<Step title="Thunks">
+
+```js
+// thunk.ts
+const actionThunk = async (
+  dispatch: Dispatch, getState: () => State
+) => {
+ const result = await callApi();
+ dispatch(makeAction(result));
+};
+```
+
+```js
+// component.tsx
+const onKeyPressed = (props: Props) => {
+ props.dispatch(actionThunk);
+};
+
+const InteractiveComponent = ...
+```
+
+</Step>
+
+</CodeSurferColumns>
+
+
+---
+
+<CodeSurferColumns themes={[nightOwl, shadesOfPurple]}>
+
+<Step title="Redux Saga">
+
+```js
+// saga.ts
+function* request(action: RequestAction) {
+ const result = yield call(callApi);
+ yield put(makeAction(result));
+}
+
+function* mySaga() {
+ yield takeEvery("REQUEST_ACTION", request);
+}
+```
+
+```js
+// component.tsx
+const onKeyPressed = (props: Props) => {
+ props.dispatch({ type: "REQUEST_ACTION" });
+};
+
+const InteractiveComponent = ...
+```
+
+</Step>
+
+</CodeSurferColumns>
+
+---
+
+<CodeSurferColumns themes={[nightOwl, shadesOfPurple]}>
+
+<Step title="Redux Observable">
+
+```js
+// epic.ts
+action$
+ .pipe(
+   ofType("REQUEST_ACTION"),
+   flatMap(async action => {
+     const result = await callApi();
+     return makeAction(result);
+   })
+ );
+```
+
+```js
+// component.tsx
+const onKeyPressed = (props: Props) => {
+ props.dispatch({ type: "REQUEST_ACTION" });
+};
+
+const InteractiveComponent = ...
+
+```
+
+</Step>
+
+</CodeSurferColumns>
+
+---
+
+[rxjs-redux](https://www.npmjs.com/package/rxjs-redux)
+
+Exercise left to the reader 😉
+
+---
+
+Keep using boring technology
+
+unless it gives you competitive advantage
+
+---
+
+Competitive advantage - solves problem at the core of your domain
+
+---
+
+A lot of people pay high cost of RxJS complexity
+
+<Image src={require("./static/rxjs-complexity.png")} size="contain" height="40%" width="80%" />
+
+Often the cost might not be worth the benefits
+
+(based on conversations @ https://gitter.im/Reactive-Extensions/RxJS)
+
+
+---
+
+## 4. Pick your battles
+
+---
+
+We chose React & Redux on the 1st day
+
+---
+
+In retrospect we could have chosen more lightweight view library
+
+...but we didn't know any better
+
+...and we're quite happy with our choice otherwise
+
+---
+
+And I think it's ok to choose a "popular" solution
+
+if you don't know any better :D
+
+---
+
+We tweaked our usage of Redux with:
+ - [ImmutableJS](https://www.npmjs.com/package/immutable) - Immutable persistent data collections for Javascript 
+ - [reselect](https://www.npmjs.com/package/reselect)
+ - https://www.npmjs.com/package/redux-log-slow-reducers
+ - https://www.npmjs.com/package/redux-ignore
+
+---
+
+We learnt that ironically React isn't necessarily reactive...
+
+---
+
+no builtin debouncing of rendering
+<br />
+
+we use https://npmjs.com/package/react-debounce-render
+
+---
+
+no built-in debouncing of prop-updates
+<br />
+
+... and impossible to my best knowledge
+<br />
+
+we use lazy data structures (eg. ImmutableJS.Seq) as a work around
+
+---
+
+ Other reactive alternatives we might try one day
+   - [refract](https://refract.js.org)
+   - [mobx](https://mobx.js.org)
+   - [cycle](https://cycle.js.org)
+
+---
+
+## 5. Great performance starts with great design
+
+---
+
+Easy to read and well modularised code is significantly easier to optimise
+
+<Image src="https://quotefancy.com/media/wallpaper/3840x2160/1725135-Kent-Beck-Quote-Make-it-work-make-it-right-make-it-fast.jpg" size="contain" height="40%" width="80%" />
+
+
+---
+
+It's like cooking a three course dinner in a messy kitchen - sure possible, but...
+
+---
+
+Simpler code is often faster for a computer to execute
+
+<Image src="https://github.com/thlorenz/deoptigate/raw/master/assets/xml2js.png" size="contain" height="60%" width="90%" />
+
+---
+
+Evolving great design is a topic of thousands of presentations,
+
+so very quickly about our experiences...
+
+---
+
+We started our project in TypeScript in 2016
+
+(when everyone laughed at us for using this exotic language)
+
+<br />
+
+Recommended: https://effectivetypescript.com
+
+---
+
+Monads FTW!
+<br />
+<Image src={require("./static/monads.png")} size="contain" height="40%" width="80%" />
+
+---
+
+Unit test your architecture https://www.npmjs.com/package/dependency-cruiser
+
+<Image src={require("./static/unit-test-architecture.png")} size="contain" height="40%" width="80%" />
+
+Inspired by (https://www.archunit.org/ via ThoughtWorks Tech Radar)
+
+---
+
+Domain Driven Design still alive
+
+<Image src={require("./static/project-structure.png")} size="contain" height="40%" />
+
+<br />
+
+Also check out Ducks (https://github.com/erikras/ducks-modular-redux)
+
+
+---
+
+YMMV tools require a bit of getting used to - try playing violin 😆
+
+---
+
+## 6. Immutability is awesome, but comes at a cost.
+
+---
+
+ImmutableJS has been a blessing
+
+---
+
+...even though it's been pretty much abandoned for the last 2 years
+
+<Image src={require("./static/immutablejs-unmaintained.png")} size="contain" height="40%" />
+
+---
+
+Records suck
+
+<Image src={require("./static/immutablejs-records.png")} size="contain" height="40%" />
+
+---
+
+if starting a new project consider other options:
+ - https://github.com/immerjs/immer
+ - https://github.com/Yomguithereal/baobab
+
+---
+
+## 7. "Mistakes were made"
+
+---
+
+for a while we used IndexedDB as a cache
+
+it eventually grew to millions of entries
+
+and schema upgrade put user's CPU into a death spiral
+
+---
+
+we've been using combineReducers wrong for nearly 2 years
+
+suffering a 20%-30% performance penalty 
+
+---
+
+another time we upgraded to HTTP 2.0 only to realise
+
+that many companies downgrade requests in their network stack
+
+---
+
+solving complex and challenging problems is a journey
+
+---
+
+taking chances is inevitable if you want to learn
+
+---
+
+
+# Summary
+
+1. Don’t get distracted by other people problems
+2. You can build a high performance web app with JS
+3. Choose boring technology... and then don’t!
+4. Pick your battles
+5. Great performance starts with great design.
+6. Immutability is awesome, but comes at a cost.
+7. "Mistakes were made"
+
+---
+
+# Thank you!
+
+Questions?
+Comments?
+Observations?
+
