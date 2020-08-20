@@ -1,1 +1,4 @@
-# building-high-performance
+How to run:
+
+    yarn install
+    yarn start
